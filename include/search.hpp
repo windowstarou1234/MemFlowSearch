@@ -24,15 +24,21 @@ public:
 
 	template <typename T>
 	int writememory(uint64_t addr, T bytes);
+	template <typename T>
+	int writememory(uint64_t addr, T bytes, int bytesize);
 	bool dumpmemory(uint64_t addr, uint64_t size);
 	bool dumpmemoryall();
 
 	template <typename T>
 	int checkarray(uint8_t *buf, int size, T bytes, uint64_t baseaddr);
+	template <typename T>
+	int checkarray(uint8_t *buf, int size, T bytes, int bytesize, uint64_t baseaddr);
 	int checkarray(uint8_t *buf, int size, std::string bytes, uint64_t baseaddr);
 
 	template <typename T>
 	bool searchmemory(T message);
+	template <typename T>
+	bool searchmemory(T message,int bytesize);
 
 	template <typename T>
 	bool searchrepetition(T message);
@@ -131,6 +137,21 @@ int Search::writememory(uint64_t addr, T bytes)
 }
 
 template <typename T>
+int Search::writememory(uint64_t addr, T bytes, int bytesize)
+{
+	int length = bytesize;
+	uint8_t *lbytes = (uint8_t *)bytes;
+
+
+	CSliceRef<uint8_t> buf;
+	buf.data = lbytes;
+	buf.len = length;
+
+	this->process->write_raw(addr, buf);
+	return 1;
+}
+
+template <typename T>
 int Search::checkarray(uint8_t *buf, int size, T bytes, uint64_t baseaddr)
 {
 	int length = sizeof(bytes);
@@ -164,6 +185,36 @@ int Search::checkarray(uint8_t *buf, int size, T bytes, uint64_t baseaddr)
 		}
 	}
 	delete[] lbytes;
+	return 0;
+}
+
+template <typename T>
+int Search::checkarray(uint8_t *buf, int size, T bytes, int bytesize, uint64_t baseaddr)
+{
+	int length = bytesize;
+
+	uint8_t *lbytes = (uint8_t *)bytes;
+
+	for (uint64_t i = 0; i < size; i++)
+	{
+		if (buf[i] == lbytes[0])
+		{
+			for (int j = 0; j < length; j++)
+			{
+				if (buf[i + j] != lbytes[j])
+				{
+					break;
+				}
+				if (j == length - 1)
+				{
+					this->memory_hit_vec.push_back(baseaddr + i);
+					std::cout << "hits: "
+							  << "0x" << std::uppercase << std::hex << baseaddr + i << std::endl;
+					// std::cout << &buf[i] << std::endl;
+				}
+			}
+		}
+	}
 	return 0;
 }
 
@@ -270,6 +321,24 @@ bool Search::searchmemory(T message)
 		this->process->read_raw_into(info._0, buf);
 
 		this->checkarray(buf.data, info._1, message, info._0);
+
+		delete buf.data;
+	}
+	return true;
+}
+
+template <typename T>
+bool Search::searchmemory(T message,int bytesize)
+{
+	this->memory_hit_vec.clear();
+	for (auto &&info : this->memory_range_vec)
+	{
+		CSliceMut<uint8_t> buf;
+		buf.data = new u_int8_t[info._1];
+		buf.len = info._1;
+		this->process->read_raw_into(info._0, buf);
+
+		this->checkarray(buf.data, info._1, message, bytesize, info._0);
 
 		delete buf.data;
 	}

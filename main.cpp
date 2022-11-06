@@ -10,6 +10,18 @@ Search search;
 
 void fmt_arch(char *arch, int n, ArchitectureIdent ident);
 
+void convertbyte(const std::string& input, std::vector<unsigned char>& output)
+{
+	output.clear();
+	std::istringstream iss(input);
+	std::string token;
+	while (getline(iss, token, ' '))
+	{
+	output.push_back(std::stoi(token, 0, 16));
+	}
+	return;
+}
+
 void get_process(){
 	printf("Process List:\n");
 
@@ -133,9 +145,12 @@ int main(int argc, char *argv[]) {
 		long index = 0;
 
 		std::cout << "{proc}: specify/change target process=>value:str" << std::endl;
-		std::cout << "{s}: searchmemory=>{1|2|4|8|str} \\n value" << std::endl;
-		std::cout << "{sr}: searchrepetition=>{1|2|4|8|str} \\n value" << std::endl;
+		std::cout << "{s}: searchmemory=>{1|2|4|8|str} \\n dec value" << std::endl;
+		std::cout << "{sh}: searchmemory=>{1|2|4|8|str|b} \\n hex value" << std::endl;
+		std::cout << "{sr}: searchrepetition=>{1|2|4|8|str} \\n dec value" << std::endl;
+		std::cout << "{srh}: searchrepetition=>{1|2|4|8|str} \\n hex value" << std::endl;
 		std::cout << "{wm}: writememory int =>addr \\n value" << std::endl;
+		std::cout << "{wm byte|wm b}: writememory byte array =>addr \\n value" << std::endl;
 		std::cout << "{wm str}: writememory str=>addr \\n value" << std::endl;
 		std::cout << "{wm all}: writememory all hits=>value" << std::endl;
 		std::cout << "{dump}: dumpmemory ???" << std::endl;
@@ -152,6 +167,7 @@ int main(int argc, char *argv[]) {
 			open_targetprocess(targetprocess, proc);
 			break;
 		case str2int("s"):
+			search.getpagemap();
 			std::getline(std::cin >> std::ws, c2);
 			switch (str2int(c2))
 			{
@@ -180,6 +196,50 @@ int main(int argc, char *argv[]) {
 				std::cin >> message ;
 				search.searchmemory(message);
 				break;
+			default:
+				break;
+			}
+			break;
+		case str2int("sh"):
+			search.getpagemap();
+			std::getline(std::cin >> std::ws, c2);
+			switch (str2int(c2))
+			{
+			case str2int("1"):
+			case str2int("u8"):
+				std::cin >> std::hex >> u8 ;
+				search.searchmemory(u8);
+				break;
+			case str2int("2"):
+			case str2int("u16"):
+				std::cin >> std::hex >> u16 ;
+				search.searchmemory(u16);
+				break;
+			case str2int("4"):
+			case str2int("u32"):
+				std::cin >> std::hex >> u32 ;
+				search.searchmemory(u32);
+				break;
+			case str2int("8"):
+			case str2int("u64"):
+				std::cin >> std::hex >> u64 ;
+				search.searchmemory(u64);
+				break;
+			case str2int("s"):
+			case str2int("str"):
+				std::getline(std::cin >> std::ws, message);
+				search.searchmemory(message);
+				break;
+			case str2int("b"):
+			case str2int("byte"):
+			{
+				//45 33 C0 48 8D 55 40 48 8B 4F 30 E8 51 07 58 02
+				std::getline(std::cin >> std::ws, message);
+				std::vector<unsigned char> output;
+				convertbyte(message,output);
+				search.searchmemory(output.data(),output.size());
+				break;
+			}
 			default:
 				break;
 			}
@@ -218,6 +278,40 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 			break;
+		case str2int("srh"):
+			std::cout << "last search: " << std::dec << last << std::endl;
+			std::cin >> c2 ;
+			switch (str2int(c2))
+			{
+			case str2int("1"):
+			case str2int("u8"):
+				std::cin >> std::hex >> u8 ;
+				search.searchrepetition(u8);
+				break;
+			case str2int("2"):
+			case str2int("u16"):
+				std::cin >> std::hex >> u16 ;
+				search.searchrepetition(u16);
+				break;
+			case str2int("4"):
+			case str2int("u32"):
+				std::cin >> std::hex >> u32 ;
+				search.searchrepetition(u32);
+				break;
+			case str2int("8"):
+			case str2int("u64"):
+				std::cin >> std::hex >> u64 ;
+				search.searchrepetition(u64);
+				break;
+			case str2int("s"):
+			case str2int("str"):
+				std::getline(std::cin >> std::ws, message);
+				search.searchrepetition(message);
+				break;
+			default:
+				break;
+			}
+			break;
 		case str2int("wm"):
 			std::cout << "type memory addr. ex 0x26FEA9460A0" << std::endl;
 			std::cin >> std::hex >> addr;
@@ -225,6 +319,19 @@ int main(int argc, char *argv[]) {
 			std::cin >> std::dec >> u32 ;
 			search.writememory(addr,u32);
 			break;
+		case str2int("wm byte"):
+		case str2int("wm b"):
+			std::cout << "type memory addr. ex 0x26FEA9460A0" << std::endl;
+			std::cin >> std::hex >> addr;
+			std::cout << "type value array 90 90 90 90 90" << std::endl;
+			{
+				//45 33 C0 48 8D 55 40 48 8B 4F 30 E8 51 07 58 02
+				std::getline(std::cin >> std::ws, message);
+				std::vector<unsigned char> output;
+				convertbyte(message,output);
+				search.writememory(addr,output.data(),output.size());
+				break;
+			}
 		case str2int("wm str"):
 			std::cout << "type memory addr. ex 0x26FEA9460A0" << std::endl;
 			std::cin >> std::hex >> addr;
